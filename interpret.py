@@ -22,31 +22,59 @@ def printError(content, errCode):
     print(content, file=sys.stderr)
     sys.exit(errCode)
 
+class symTable:
 
-class instruction:
-    instList = []
-    labels = []
-    order = []
 
-    def __init__(self, opCode, order):
-        self._opCode = opCode
-        self._order = int(order)
-        self._arguments = [[], [], []]
-        type(self).instList.append(self)
+class interpret:
+    def __init__(self, arrayOfAllLabels, input):
+        self.symtable = symTable()
+        self.arrayOfAllLabels =  arrayOfAllLabels
+        self.stack = []
+        self.instructionCount = 0
+        self.input = input
 
-    def getOpCode(self):
-        return self._opCode
-
-    def getArguments(self):
-        return self._arguments
 
     instruction_dictionary = {
-        "MOVE": 12
+        "MOVE": ["variable", "symbol"],
+        "CREATEFRAME": [None],
+        "PUSHFRAME": [None],
+        "POPFRAME": [None],
+        "DEFVAR": [None],
+        "CALL": ["label"],
+        "RETURN": [None],
+        "PUSHS": ["symbol"],
+        "POPS": ["variable"],
+        "ADD": ["variable", "symbol", "symbol"],
+        "SUB": ["variable", "symbol", "symbol"],
+        "MUL": ["variable", "symbol", "symbol"],
+        "IDIV": ["variable", "symbol", "symbol"],
+        "LT": ["variable", "symbol", "symbol"],
+        "GT": ["variable", "symbol", "symbol"],
+        "EQ": ["variable", "symbol", "symbol"],
+        "AND": ["variable", "symbol", "symbol"],
+        "OR": ["variable", "symbol", "symbol"],
+        "NOT": ["variable", "symbol", "symbol"],
+        "INT2CHAR": ["variable", "symbol"],
+        "STRI2INT": ["variable", "symbol", "symbol"],
+        "READ": ["variable", "type"],
+        "WRITE": ["symbol"],
+        "CONCAT": ["variable", "symbol", "symbol"],
+        "STRLEN": ["variable", "symbol"],
+        "GETCHAR": ["variable", "symbol", "symbol"],
+        "SETCHAR": ["variable", "symbol", "symbol"],
+        "TYPE": ["variable", "symbol"],
+        "LABEL": ["label"],
+        "JUMP": ["label"],
+        "JUMPIFEQ": ["label", "symbol", "symbol"],
+        "JUMPIFNEQ": ["label", "symbol", "symbol"],
+        "EXIT": ["symbol"],
+        "DPRINT": ["symbol"],
+        "BREAK": [None]
     }
 
 
 class xmlRead:
-    order = 0
+    xmlOrder = 0
 
     def __init__(self, sourceFile):
         if (sourceFile != None):
@@ -79,6 +107,12 @@ class xmlRead:
 
         if (int(order) < 0):
             printError("Error: instruction order is invalid\n", 32)
+
+        if (self.xmlOrder < int(order)):
+            self.xmlOrder = order;
+            return True;
+        else:
+            printError("Error: instruction order is invalid", 32)
 
     def opcodeGetter(self, instruction):
         return instruction.attrib.get('opcode')
@@ -131,8 +165,11 @@ class commandLineArguments:
         if sourceFileParameter == None and inputParameter == None:
             print("Error: not even one mandatory argument was used\n", 10)
 
-    def getSourceAndInput(self):
-        return self.sourceFileParameter, self.inputParameter
+        return sourceFileParameter, inputParameter
+
+
+def howToSort(ins):
+    return int(ins.attrib.get('order'))
 
 
 class frame:
@@ -174,6 +211,8 @@ def runProgram(sourceFile, inputFile):
                 arrayOfAllLabels[instruction.find('arg1').text] = order
 
     order += 1
+
+
 # main function
 
 if __name__ == '__main__':
