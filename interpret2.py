@@ -157,3 +157,115 @@ class interpret:
                     for lineIndex in range(len(self.inputContent)):
                         self.inputContent[lineIndex] = self.inputContent[lineIndex]. strip()
                     self.isThereAnInput = True
+            if self.inputLines < len(self.inputContent):
+                line = self.inputContent[self.inputLines]
+                self.inputLines += 1
+                return line
+            else:
+                return None
+        else:
+            return input()
+
+    def retIntInStr(self, string: str):
+        if string[0] in ('-', '+'):
+            return string[1:].isdigit()
+        return string.isdigit()
+
+    def argumentParser(self, inst: instructions, argument: ET.Element):
+        if argument.tag not in ('arg1', 'arg2', 'arg3'):
+            printError("Error: wrong structure of source XML\n", 32)
+        aOrder = int(argument.tag[3])
+
+        if argument.attrib['type'] == 'var':
+            if len(argument.text) < 4 or argument.text[:3] not in ('GF@', 'LF@', 'TF@'):
+                printError("Error: invalid XML source format",31)
+            inst.arguments.append(arguments(type = 'var', name = argument.text, order = aOrder))
+        elif argument.attrib['type'] == 'string':
+            if argument.text:
+                #todo what does this code do
+                for lineIndex, substitution in enumerate(argument.text.split("\\")):
+                    if lineIndex == 0:
+                        argument.text = substitution
+                    else:
+                        if int(substitution[0:3]) < 0 or int(substitution[0:3]) > 999:
+                            printError("Error: wrong operands of XML source code", 53)
+                        argument.text = argument.text + chr(int(substitution[0:3])) + substitution[3:]
+            argument.text = ''
+
+            inst.arguments.append(arguments(type='string', val=argument.text, order=aOrder))
+
+        elif argument.attrib['type'] == 'int':
+            if not argument.text or not self.retIntInStr(argument.text):
+                printError("Error: wrong structure of source XML\n", 32)
+            inst.arguments.append(arguments(type='int', val=int(argument.text), order=aOrder))
+
+        elif argument.attrib['type'] == 'bool':
+            if not argument.text not in ('false', 'true'):
+                printError("Error: invalid XML source format\n", 31)
+            inst.arguments.append(arguments(type='bool', val=argument.text, order=aOrder))
+
+        elif argument.attrib['type'] == 'nil':
+            if not argument.text not in 'nil':
+                printError("Error: invalid XML source format\n", 31)
+            inst.arguments.append(arguments(type='nil', val='nil', order=aOrder))
+
+        elif argument.attrib['type'] == 'label':
+            if not argument.text:
+                printError("Error: invalid XML source format\n", 31)
+            inst.arguments.append(arguments(type='label', val=argument.text, order=aOrder))
+
+        elif argument.attrib['type'] == 'type':
+            if not argument.text not in ('string', 'int', 'bool'):
+                printError("Error: invalid XML source format\n", 31)
+            inst.arguments.append(arguments(type=argument.text, order=aOrder))
+
+        else:
+            printError("Error: wrong structure of source XML\n", 32)
+
+    def frameGetter(self, argument: arguments):
+        if argument.frame == 'GF':
+            return self.GF
+        if argument.frame == 'LF':
+            if self.LF.empty():
+                printError("Error: empty frame whilst calling pop\n", 55)
+                return
+            return self.LF.peek()[1]
+        if argument.frame == 'TF':
+            if not self.TFFlag:
+                printError("Error: empty frame whilst calling pop\n", 55)
+                return
+            return self.TF
+
+
+
+    def ETreeParser(self):
+        for element in self.xml:
+            if element.tag != 'instruction' or 'order' not in element.attrib or 'opcode' not in element.attrib:
+                printError("Error: wrong structure of source XML\n", 32)
+            if not element.attrib['order'].isdigit():
+                printError("Error: wrong structure of source XML\n", 32)
+            if not self.retIntInStr(element.attrib['order']):
+                printError("Error: wrong structure of source XML\n", 32)
+            if int(element.attrib['order']) in self.orderChecker or int(element.attrib['order']) < 1:
+                printError("Error: wrong structure of source XML\n", 32)
+
+            self.orderChecker.append(int(element.attrib['order']))
+            inst = instructions(element.attrib['opcode'], int(element.attrib['order']))
+
+            for arg in element.iter():
+                if arg != element:
+                    #todo argumentParser
+                    self.argumentParser(inst, arg)
+            inst.arguments.sort(key=lambda x: x.order)
+
+            flag = 1
+            for arg in inst.arguments:
+                if arg.order != flag:
+                    printError("Error: wrong structure of source XML\n", 32)
+                flag += 1
+
+            self.listOfAllInstructions.append(inst)
+
+
+
+
